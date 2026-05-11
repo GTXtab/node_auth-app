@@ -11,6 +11,11 @@ export const User = client.define('user', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'Unknown',
+  },
   activationToken: {
     type: DataTypes.STRING,
   },

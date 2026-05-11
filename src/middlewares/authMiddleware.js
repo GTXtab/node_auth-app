@@ -14,6 +14,6 @@ export const authMiddleware = (req, res, next) => {
     res.sendStatus(401);
     return;
   }
-
+  req.user = userData;
   next();
 };

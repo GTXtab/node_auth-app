@@ -18,7 +18,7 @@ function validatePassword(value) {
 }
 
 const register = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, name, password } = req.body;
 
   const errors = {
     email: validateEmail(email),
@@ -31,7 +31,7 @@ const register = async (req, res) => {
 
   const hashedPass = await bcrypt.hash(password, 10);
 
-  await userService.register(email, hashedPass);
+  await userService.register(email, hashedPass, name);
   res.send({ message: 'OK' });
 };
 
@@ -95,10 +95,14 @@ const refresh = async (req, res) => {
 
   if (!userData || !token) {
     throw ApiError.unauthorized();
-    return;
   }
 
   const user = await userService.findByEmail(userData.email);
+
+  if (!user) {
+    throw ApiError.unauthorized();
+  }
+
   generateTokens(res, user);
 };
 
