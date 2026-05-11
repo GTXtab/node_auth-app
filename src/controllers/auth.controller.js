@@ -35,21 +35,18 @@ const register = async (req, res) => {
   res.send({ message: 'OK' });
 };
 
-const activate = async (req, res) => {
-  const { activationToken } = req.params;
-  const user = await User.findOne({ where: { activationToken } });
+const activate = async (req, res, next) => {
+  try {
+    const activationToken = req.params.activationToken;
 
-  if (!user) {
-    return res.status(404).json({
-      message:
-        'Користувача з таким токеном не знайдено або він вже активований',
-    });
+    await userService.activate(activationToken);
+
+    const clientUrl = 'http://localhost:5173';
+
+    return res.redirect(`${clientUrl}/profile`);
+  } catch (e) {
+    next(e);
   }
-
-  user.activationToken = null;
-
-  await user.save();
-  res.status(200).send(user);
 };
 
 const login = async (req, res) => {
@@ -58,6 +55,12 @@ const login = async (req, res) => {
 
   if (!user) {
     throw ApiError.badRequest('No such user');
+  }
+
+  if (user.activationToken !== null) {
+    throw ApiError.badRequest(
+      'If user is not active ask them to activate their email',
+    );
   }
 
   const isPasswordValid = bcrypt.compare(password, user.password);
