@@ -3,13 +3,13 @@ import { Token } from '../models/token.js';
 async function save(userId, newToken) {
   if (!userId) {
     throw new Error(
-      'tokenService.save: Очікувався userId, але отримано undefined або null',
+      'tokenService.save: Expected userId, but received undefined or null',
     );
   }
 
   if (!newToken) {
     throw new Error(
-      'tokenService.save: Очікувався newToken, але його не передано',
+      'tokenService.save: A newToken was expected, but none was provided',
     );
   }
 

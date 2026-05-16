@@ -36,12 +36,17 @@ const updatePassword = async (req, res) => {
 };
 
 const updateEmail = async (req, res) => {
-  const { newEmail, password } = req.body;
+  const { newEmail, newEmailConfirmation, password } = req.body;
   const userId = req.user.id;
 
-  await userService.updateEmail(userId, newEmail, password);
+  await userService.updateEmail(
+    userId,
+    newEmail,
+    newEmailConfirmation,
+    password,
+  );
 
-  return res.json({ message: 'Email has been succesfully updated!' });
+  return res.json({ message: 'Email has been successfully updated!' });
 };
 
 export const userController = {

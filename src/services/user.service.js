@@ -43,7 +43,13 @@ async function updateName(userId, newName) {
   return normalize(user);
 }
 
-async function updateEmail(userId, newEmail, password) {
+async function updateEmail(userId, newEmail, newEmailConfirmation, password) {
+  if (newEmail !== newEmailConfirmation) {
+    throw ApiError.badRequest(
+      'The new email and the confirmation do not match',
+    );
+  }
+
   const user = await User.findByPk(userId);
 
   if (!user) {
@@ -53,14 +59,14 @@ async function updateEmail(userId, newEmail, password) {
   const isPassEquals = await bcrypt.compare(password, user.password);
 
   if (!isPassEquals) {
-    throw ApiError.badRequest('Невірний пароль');
+    throw ApiError.badRequest('Incorrect password');
   }
 
   const candidate = await User.findOne({ where: { email: newEmail } });
 
   if (candidate) {
     throw ApiError.badRequest(
-      `Пошта ${newEmail} вже використовується іншим користувачем`,
+      `The email address ${newEmail} is already in use by another user`,
     );
   }
 
@@ -71,7 +77,6 @@ async function updateEmail(userId, newEmail, password) {
   await user.save();
 
   await emailService.sendEmailChangeNotification(oldEmail, newEmail);
-
   await emailService.sendActivationEmail(newEmail, user.activationToken);
 
   return normalize(user);
@@ -90,13 +95,15 @@ async function updatePassword(
   }
 
   if (newPassword !== confirmPassword) {
-    throw ApiError.badRequest('Новий пароль та підтвердження не співпадають');
+    throw ApiError.badRequest(
+      'The new password and the confirmation do not match',
+    );
   }
 
   const isPassEquals = await bcrypt.compare(oldPassword, user.password);
 
   if (!isPassEquals) {
-    throw ApiError.badRequest('Невірний старий пароль');
+    throw ApiError.badRequest('Incorrect old password');
   }
 
   const hashPassword = await bcrypt.hash(newPassword, 10);
@@ -144,7 +151,7 @@ async function forgotPassword(email) {
   const user = await User.findOne({ where: { email } });
 
   if (!user) {
-    throw ApiError.badRequest('Користувача з таким email не знайдено');
+    throw ApiError.badRequest('No user with that email address was found');
   }
 
   user.resetToken = uuidv4();
@@ -157,7 +164,7 @@ async function resetPassword(resetToken, newPassword) {
   const user = await User.findOne({ where: { resetToken } });
 
   if (!user) {
-    throw ApiError.badRequest('Недійсний токен або час його дії минув');
+    throw ApiError.badRequest('The token is invalid or has expired');
   }
 
   user.password = await bcrypt.hash(newPassword, 10);
