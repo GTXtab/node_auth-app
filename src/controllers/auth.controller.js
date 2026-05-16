@@ -8,10 +8,10 @@ import { tokenService } from '../services/token.service.js';
 
 function validateEmail(value) {
   const EMAIL_PATTERN = /^[\w.+-]+@([\w-]+\.){1,3}[\w-]{2,}$/;
-
   if (!value) return 'Email is required';
   if (!EMAIL_PATTERN.test(value)) return 'Email is not valid';
 }
+
 function validatePassword(value) {
   if (!value) return 'Password is required';
   if (value.length < 6) return 'At least 6 characters';
@@ -37,13 +37,29 @@ const register = async (req, res) => {
 
 const activate = async (req, res, next) => {
   try {
-    const activationToken = req.params.activationToken;
+    // Беремо токен з параметрів роута
+    const { activationToken } = req.params;
 
-    await userService.activate(activationToken);
+    const user = await userService.activate(activationToken);
 
-    const clientUrl = 'http://localhost:5173';
+    const normalizedUser = userService.normalize(user);
 
-    return res.redirect(`${clientUrl}/profile`);
+    const accessToken = jwtService.sign(normalizedUser);
+
+    const refreshAccessToken = jwtService.signRefresh(normalizedUser);
+
+    await tokenService.save(normalizedUser.id, refreshAccessToken);
+
+    res.cookie('refreshToken', refreshAccessToken, {
+      httpOnly: true,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.status(200).json({
+      message: 'Account activated successfully',
+      user: normalizedUser,
+      accessToken,
+    });
   } catch (e) {
     next(e);
   }
@@ -63,13 +79,13 @@ const login = async (req, res) => {
     );
   }
 
-  const isPasswordValid = bcrypt.compare(password, user.password);
+  const isPasswordValid = await bcrypt.compare(password, user.password);
 
   if (!isPasswordValid) {
     throw ApiError.badRequest('Wrong password');
   }
 
-  generateTokens(res, user);
+  await generateTokens(res, user);
 };
 
 async function generateTokens(res, user) {
@@ -80,7 +96,7 @@ async function generateTokens(res, user) {
   await tokenService.save(normalizedUser.id, refreshAccessToken);
 
   res.cookie('refreshToken', refreshAccessToken, {
-    HttpOnly: true,
+    httpOnly: true,
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
 
@@ -92,6 +108,10 @@ async function generateTokens(res, user) {
 
 const refresh = async (req, res) => {
   const { refreshToken } = req.cookies;
+
+  if (!refreshToken) {
+    throw ApiError.unauthorized();
+  }
 
   const userData = await jwtService.verifyRefresh(refreshToken);
   const token = await tokenService.getByToken(refreshToken);
@@ -106,7 +126,7 @@ const refresh = async (req, res) => {
     throw ApiError.unauthorized();
   }
 
-  generateTokens(res, user);
+  await generateTokens(res, user);
 };
 
 const logout = async (req, res) => {
@@ -119,7 +139,40 @@ const logout = async (req, res) => {
   }
 
   await tokenService.remove(userData.id);
+  res.clearCookie('refreshToken');
   res.sendStatus(204);
+};
+
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) throw ApiError.badRequest('Email is required');
+
+    await userService.forgotPassword(email);
+
+    return res
+      .status(200)
+      .json({ message: 'Лист для скидання пароля відправлено' });
+  } catch (e) {
+    next(e);
+  }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const { resetToken } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      throw ApiError.badRequest('Пароль має містити щонайменше 6 символів');
+    }
+
+    await userService.resetPassword(resetToken, newPassword);
+
+    return res.status(200).json({ message: 'Пароль успішно змінено' });
+  } catch (e) {
+    next(e);
+  }
 };
 
 export const authController = {
@@ -128,4 +181,6 @@ export const authController = {
   login,
   refresh,
   logout,
+  forgotPassword,
+  resetPassword,
 };

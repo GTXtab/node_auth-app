@@ -16,12 +16,14 @@ function normalize(user) {
   if (!user) return null;
   return { id: user.id, email: user.email, name: user.name };
 }
+
 async function findByEmail(email) {
   return User.findOne({ where: { email } });
 }
 
 async function getUserById(id) {
-  return User.findByPk(id);
+  const user = await User.findByPk(id);
+  return normalize(user);
 }
 
 async function updateName(userId, newName) {
@@ -33,7 +35,8 @@ async function updateName(userId, newName) {
 
   user.name = newName;
   await user.save();
-  return user;
+
+  return normalize(user);
 }
 
 async function updateEmail(userId, newEmail, password) {
@@ -60,7 +63,11 @@ async function updateEmail(userId, newEmail, password) {
   user.activationToken = uuidv4();
   await user.save();
 
-  return user;
+  await emailService.sendEmailChangeNotification(oldEmail, newEmail);
+
+  await emailService.sendActivationEmail(newEmail, user.activationToken);
+
+  return normalize(user);
 }
 
 async function updatePassword(
@@ -84,10 +91,11 @@ async function updatePassword(
     throw ApiError.badRequest('Невірний старий пароль');
   }
 
-  const hashPassword = await bcrypt.hash(newPassword, 3);
+  const hashPassword = await bcrypt.hash(newPassword, 10);
   user.password = hashPassword;
   await user.save();
-  return user;
+
+  return normalize(user);
 }
 
 async function register(email, password, name) {
@@ -105,6 +113,45 @@ async function register(email, password, name) {
   await emailService.sendActivationEmail(email, activationToken);
 }
 
+const activate = async (activationToken) => {
+  const user = await User.findOne({ where: { activationToken } });
+
+  if (!user) {
+    throw ApiError.badRequest('Invalid activation token');
+  }
+
+  user.activationToken = null;
+  await user.save();
+
+  return user;
+};
+
+async function forgotPassword(email) {
+  const user = await User.findOne({ where: { email } });
+
+  if (!user) {
+    throw ApiError.badRequest('Користувача з таким email не знайдено');
+  }
+
+  user.resetToken = uuidv4();
+  await user.save();
+
+  await emailService.sendResetPasswordEmail(email, user.resetToken);
+}
+
+async function resetPassword(resetToken, newPassword) {
+  const user = await User.findOne({ where: { resetToken } });
+
+  if (!user) {
+    throw ApiError.badRequest('Недійсний токен або час його дії минув');
+  }
+
+  user.password = await bcrypt.hash(newPassword, 10);
+
+  user.resetToken = null;
+  await user.save();
+}
+
 export const userService = {
   getAllActivated,
   normalize,
@@ -114,4 +161,7 @@ export const userService = {
   updateName,
   updateEmail,
   updatePassword,
+  activate,
+  forgotPassword,
+  resetPassword,
 };
