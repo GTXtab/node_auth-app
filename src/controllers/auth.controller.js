@@ -159,19 +159,25 @@ const forgotPassword = async (req, res, next) => {
 const resetPassword = async (req, res, next) => {
   try {
     const { resetToken } = req.params;
-    const { newPassword } = req.body;
+    const { newPassword, confirmPassword } = req.body;
 
-    if (!newPassword || newPassword.length < 6) {
-      throw ApiError.badRequest(
-        'The password must be at least 6 characters long',
-      );
+    if (!newPassword || !confirmPassword) {
+      throw ApiError.badRequest('Password and confirmPassword are required');
+    }
+
+    if (newPassword !== confirmPassword) {
+      throw ApiError.badRequest('Passwords do not match');
+    }
+
+    if (newPassword.length < 6) {
+      throw ApiError.badRequest('Password must be at least 6 characters long');
     }
 
     await userService.resetPassword(resetToken, newPassword);
 
     return res
       .status(200)
-      .json({ message: 'Your password has been successfully changed' });
+      .json({ message: 'Password has been successfully changed' });
   } catch (e) {
     next(e);
   }
