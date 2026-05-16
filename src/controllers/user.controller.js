@@ -1,6 +1,3 @@
-import { User } from '../models/user.js';
-import { emailService } from '../services/email.service.js';
-import { v4 as uuidv4 } from 'uuid';
 import { userService } from '../services/user.service.js';
 
 const getAllActivated = async (req, res) => {
@@ -11,6 +8,7 @@ const getAllActivated = async (req, res) => {
 
 const getProfile = async (req, res, next) => {
   const user = await userService.getUserById(req.user.id);
+
   return res.json(user);
 };
 
@@ -19,6 +17,7 @@ const updateName = async (req, res) => {
   const userId = req.user.id;
 
   const updatedUser = await userService.updateName(userId, name);
+
   return res.json(updatedUser);
 };
 
@@ -32,6 +31,7 @@ const updatePassword = async (req, res) => {
     newPassword,
     confirmPassword,
   );
+
   return res.json({ message: 'Password has been successfully updated' });
 };
 
@@ -40,7 +40,8 @@ const updateEmail = async (req, res) => {
   const userId = req.user.id;
 
   await userService.updateEmail(userId, newEmail, password);
-  return res.json({ message: "Email has been succesfully updated!"})
+
+  return res.json({ message: 'Email has been succesfully updated!' });
 };
 
 export const userController = {

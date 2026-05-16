@@ -17,6 +17,7 @@ async function save(userId, newToken) {
 
   if (!token) {
     await Token.create({ userId, refreshToken: newToken });
+
     return;
   }
 

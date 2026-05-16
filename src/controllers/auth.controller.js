@@ -1,5 +1,3 @@
-import { User } from '../models/user.js';
-import { emailService } from '../services/email.service.js';
 import { userService } from '../services/user.service.js';
 import { jwtService } from '../services/jwt.service.js';
 import { ApiError } from '../exceptions/api.error.js';
@@ -8,13 +6,24 @@ import { tokenService } from '../services/token.service.js';
 
 function validateEmail(value) {
   const EMAIL_PATTERN = /^[\w.+-]+@([\w-]+\.){1,3}[\w-]{2,}$/;
-  if (!value) return 'Email is required';
-  if (!EMAIL_PATTERN.test(value)) return 'Email is not valid';
+
+  if (!value) {
+    return 'Email is required';
+  }
+
+  if (!EMAIL_PATTERN.test(value)) {
+    return 'Email is not valid';
+  }
 }
 
 function validatePassword(value) {
-  if (!value) return 'Password is required';
-  if (value.length < 6) return 'At least 6 characters';
+  if (!value) {
+    return 'Password is required';
+  }
+
+  if (value.length < 6) {
+    return 'At least 6 characters';
+  }
 }
 
 const register = async (req, res) => {
@@ -129,30 +138,19 @@ const refresh = async (req, res) => {
   await generateTokens(res, user);
 };
 
-const logout = async (req, res) => {
-  const { refreshToken } = req.cookies;
-  const userData = await jwtService.verifyRefresh(refreshToken);
-
-  if (!userData || !refreshToken) {
-    throw ApiError.unauthorized();
-    return;
-  }
-
-  await tokenService.remove(userData.id);
-  res.clearCookie('refreshToken');
-  res.sendStatus(204);
-};
-
 const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
-    if (!email) throw ApiError.badRequest('Email is required');
+
+    if (!email) {
+      throw ApiError.badRequest('Email is required');
+    }
 
     await userService.forgotPassword(email);
 
     return res
       .status(200)
-      .json({ message: 'Лист для скидання пароля відправлено' });
+      .json({ message: 'The password reset email has been sent' });
   } catch (e) {
     next(e);
   }
@@ -164,15 +162,32 @@ const resetPassword = async (req, res, next) => {
     const { newPassword } = req.body;
 
     if (!newPassword || newPassword.length < 6) {
-      throw ApiError.badRequest('Пароль має містити щонайменше 6 символів');
+      throw ApiError.badRequest(
+        'The password must be at least 6 characters long',
+      );
     }
 
     await userService.resetPassword(resetToken, newPassword);
 
-    return res.status(200).json({ message: 'Пароль успішно змінено' });
+    return res
+      .status(200)
+      .json({ message: 'Your password has been successfully changed' });
   } catch (e) {
     next(e);
   }
+};
+
+const logout = async (req, res) => {
+  const { refreshToken } = req.cookies;
+  const userData = await jwtService.verifyRefresh(refreshToken);
+
+  if (!userData || !refreshToken) {
+    throw ApiError.unauthorized();
+  }
+
+  await tokenService.remove(userData.id);
+  res.clearCookie('refreshToken');
+  res.sendStatus(204);
 };
 
 export const authController = {

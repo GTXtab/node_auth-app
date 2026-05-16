@@ -13,7 +13,10 @@ export async function getAllActivated() {
 }
 
 function normalize(user) {
-  if (!user) return null;
+  if (!user) {
+    return null;
+  }
+
   return { id: user.id, email: user.email, name: user.name };
 }
 
@@ -23,6 +26,7 @@ async function findByEmail(email) {
 
 async function getUserById(id) {
   const user = await User.findByPk(id);
+
   return normalize(user);
 }
 
@@ -41,16 +45,19 @@ async function updateName(userId, newName) {
 
 async function updateEmail(userId, newEmail, password) {
   const user = await User.findByPk(userId);
+
   if (!user) {
     throw ApiError.badRequest('User is not found');
   }
 
   const isPassEquals = await bcrypt.compare(password, user.password);
+
   if (!isPassEquals) {
     throw ApiError.badRequest('Невірний пароль');
   }
 
   const candidate = await User.findOne({ where: { email: newEmail } });
+
   if (candidate) {
     throw ApiError.badRequest(
       `Пошта ${newEmail} вже використовується іншим користувачем`,
@@ -87,11 +94,13 @@ async function updatePassword(
   }
 
   const isPassEquals = await bcrypt.compare(oldPassword, user.password);
+
   if (!isPassEquals) {
     throw ApiError.badRequest('Невірний старий пароль');
   }
 
   const hashPassword = await bcrypt.hash(newPassword, 10);
+
   user.password = hashPassword;
   await user.save();
 
@@ -109,7 +118,12 @@ async function register(email, password, name) {
     });
   }
 
-  await User.create({ email, password, name, activationToken });
+  await User.create({
+    email,
+    password,
+    name,
+    activationToken,
+  });
   await emailService.sendActivationEmail(email, activationToken);
 }
 
